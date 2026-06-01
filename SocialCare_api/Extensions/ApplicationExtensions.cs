@@ -14,6 +14,8 @@ public static class ApplicationExtensions
         services.AddScoped<IMembroService, MembroService>();
         services.AddScoped<IProgramaService, ProgramaService>();
         services.AddScoped<IBeneficioService, BeneficioService>();
+        services.AddScoped<IInstituicaoService, InstituicaoService>();
+        services.AddScoped<IEncaminhamentoService, EncaminhamentoService>();
 
         return services;
     }

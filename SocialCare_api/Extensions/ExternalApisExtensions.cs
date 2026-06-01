@@ -9,6 +9,7 @@ public static class ExternalApisExtensions
     {
         var viaCepBaseUrl = config["ViaCep:BaseUrl"] ?? "https://viacep.com.br/ws/";
         var ibgeBaseUrl = config["Ibge:BaseUrl"] ?? "https://servicodados.ibge.gov.br/api/v1/";
+        var brasilApiBaseUrl = config["BrasilApi:BaseUrl"] ?? "https://brasilapi.com.br/api/";
 
         services.AddHttpClient<IViaCepClient, ViaCepClient>(c =>
         {
@@ -20,6 +21,12 @@ public static class ExternalApisExtensions
         {
             c.BaseAddress = new Uri(ibgeBaseUrl);
             c.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        services.AddHttpClient<IBrasilApiClient, BrasilApiClient>(c =>
+        {
+            c.BaseAddress = new Uri(brasilApiBaseUrl);
+            c.Timeout = TimeSpan.FromSeconds(15);
         });
 
         return services;
