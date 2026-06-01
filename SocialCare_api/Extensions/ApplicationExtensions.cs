@@ -16,6 +16,9 @@ public static class ApplicationExtensions
         services.AddScoped<IBeneficioService, BeneficioService>();
         services.AddScoped<IInstituicaoService, InstituicaoService>();
         services.AddScoped<IEncaminhamentoService, EncaminhamentoService>();
+        services.AddScoped<IVisitaService, VisitaService>();
+        services.AddScoped<IAtendimentoService, AtendimentoService>();
+        services.AddScoped<IUsuarioService, UsuarioService>();
 
         return services;
     }
