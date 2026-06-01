@@ -11,6 +11,9 @@ public static class ApplicationExtensions
         services.AddValidatorsFromAssemblyContaining<FamiliaService>();
 
         services.AddScoped<IFamiliaService, FamiliaService>();
+        services.AddScoped<IMembroService, MembroService>();
+        services.AddScoped<IProgramaService, ProgramaService>();
+        services.AddScoped<IBeneficioService, BeneficioService>();
 
         return services;
     }

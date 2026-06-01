@@ -67,7 +67,7 @@ public class FamiliaService : IFamiliaService
 
     public async Task<FamiliaResponse> CriarAsync(CriarFamiliaRequest request, CancellationToken ct = default)
     {
-        await _criarValidator.ValidateAndThrowAsync(request, ct);
+        await _criarValidator.EnsureValidAsync(request, ct);
         await GarantirMunicipioAsync(request.Endereco.MunicipioId, ct);
 
         var codigo = request.CodigoFamiliar.Trim();
@@ -90,7 +90,7 @@ public class FamiliaService : IFamiliaService
 
     public async Task<FamiliaResponse> AtualizarAsync(int id, AtualizarFamiliaRequest request, CancellationToken ct = default)
     {
-        await _atualizarValidator.ValidateAndThrowAsync(request, ct);
+        await _atualizarValidator.EnsureValidAsync(request, ct);
         await GarantirMunicipioAsync(request.Endereco.MunicipioId, ct);
 
         var familia = await CarregarCompletaAsync(id, rastrear: true, ct)
