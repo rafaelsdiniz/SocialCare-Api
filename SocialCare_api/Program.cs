@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SocialCare.Extensions;
 using SocialCare.Infrastructure.Bootstrap;
 using SocialCare.Infrastructure.Data;
+using SocialCare.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,10 +12,18 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddMemoryCache();
 builder.Services.AddSocialCareAuthentication(builder.Configuration);
 builder.Services.AddSocialCareExternalApis(builder.Configuration);
+builder.Services.AddSocialCarePersistence();
+builder.Services.AddSocialCareApplication();
 builder.Services.AddSocialCareSwagger();
 builder.Services.AddControllers();
 
+// Validação fica a cargo da FluentValidation (mensagens padronizadas em PT-BR via middleware).
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    options.SuppressModelStateInvalidFilter = true);
+
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
