@@ -1,0 +1,93 @@
+@startuml SocialCare-CasosDeUso
+!theme plain
+title SocialCare — Diagrama de Casos de Uso
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam ArrowColor #1F6FEB
+skinparam ActorBorderColor #1E293B
+skinparam ActorBackgroundColor #F8FAFC
+skinparam UsecaseBorderColor #1F6FEB
+skinparam UsecaseBackgroundColor #EFF6FF
+skinparam UsecaseFontColor #1E293B
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #F1F5F9
+skinparam DefaultFontName "Segoe UI"
+
+left to right direction
+
+actor "Administrador"     as ADM
+actor "Gestor"            as GES
+actor "Assistente Social" as ASS
+actor "ViaCEP"            as VIACEP
+actor "IBGE"              as IBGE
+actor "Parceiro / BI"     as PARC
+
+rectangle "Sistema SocialCare" {
+
+  package "Autenticação & Acesso" {
+    usecase "UC01 — Autenticar-se"            as UC01
+    usecase "UC02 — Gerenciar Usuários"       as UC02
+    usecase "UC15 — Auditar Operações"        as UC15
+  }
+
+  package "Cadastro Familiar" {
+    usecase "UC03 — Cadastrar Família"        as UC03
+    usecase "UC04 — Cadastrar Membro"         as UC04
+    usecase "UC05 — Buscar Endereço por CEP"  as UC05
+    usecase "UC17 — Carregar UF/Município"    as UC17
+  }
+
+  package "Programas & Benefícios" {
+    usecase "UC06 — Cadastrar Programa Social" as UC06
+    usecase "UC07 — Conceder Benefício"        as UC07
+  }
+
+  package "Atendimento Social" {
+    usecase "UC08 — Agendar Visita"                       as UC08
+    usecase "UC09 — Registrar Visita"                     as UC09
+    usecase "UC10 — Abrir Atendimento"                    as UC10
+    usecase "UC11 — Encaminhar para Instituição Parceira" as UC11
+  }
+
+  package "Relatórios & Indicadores" {
+    usecase "UC12 — Relatório: Famílias por Vulnerabilidade" as UC12
+    usecase "UC13 — Relatório: Benefícios por Programa"      as UC13
+    usecase "UC14 — Relatório: Visitas por Assistente"       as UC14
+    usecase "UC16 — Consultar Indicadores Públicos"          as UC16
+  }
+}
+
+' --- Associações: Administrador ---
+ADM --> UC01
+ADM --> UC02
+ADM --> UC15
+
+' --- Associações: Gestor ---
+GES --> UC01
+GES --> UC06
+GES --> UC07
+GES --> UC12
+GES --> UC13
+GES --> UC14
+
+' --- Associações: Assistente Social ---
+ASS --> UC01
+ASS --> UC03
+ASS --> UC04
+ASS --> UC08
+ASS --> UC09
+ASS --> UC10
+ASS --> UC11
+
+' --- Associações: Parceiro / BI (sem autenticação) ---
+PARC --> UC16
+
+' --- Atores externos (sistemas de terceiros) ---
+UC05  ..> VIACEP : <<include>>
+UC17  ..> IBGE   : <<include>>
+UC03  ..> UC05   : <<include>>
+UC03  ..> UC17   : <<include>>
+UC09  ..> UC08   : <<extend>>
+
+@enduml

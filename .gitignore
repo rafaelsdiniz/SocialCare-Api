@@ -55,3 +55,6 @@ Desktop.ini
 appsettings.*.local.json
 *.pfx
 *.key
+
+## Docs tooling
+docs/plantuml.jar

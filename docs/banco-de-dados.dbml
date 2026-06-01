@@ -1,0 +1,343 @@
+// =====================================================================
+// SocialCare — Modelo de Banco de Dados (DBML)
+// Avaliação Final — Tópicos III · Rafael Diniz · 29/05/2026
+//
+// Como visualizar:
+//   1. Acesse https://dbdiagram.io/d
+//   2. Cole o conteúdo deste arquivo
+//   3. Exporte como PNG / PDF / SQL Server DDL
+//
+// Convenções:
+//   - Toda PK chamada `Id` (int, auto-increment).
+//   - FKs nomeadas como `<Entidade>Id`.
+//   - Colunas de auditoria: DataCriacao, DataAtualizacao, Ativo (soft delete).
+//   - Strings curtas: varchar(N). Texto livre: nvarchar(max).
+//   - Valores monetários: decimal(10,2).
+// =====================================================================
+
+Project SocialCare {
+  database_type: 'SQL Server'
+  Note: '''
+    Sistema de Gestão de Assistência Social.
+    21 entidades + 2 tabelas associativas (UsuarioPerfil, FamiliaVulnerabilidade).
+  '''
+}
+
+// =====================================================================
+// BLOCO A — Identidade e Auditoria
+// =====================================================================
+
+Table Usuario {
+  Id              int           [pk, increment]
+  Nome            varchar(150)  [not null]
+  Email           varchar(150)  [not null, unique]
+  SenhaHash       varchar(500)  [not null]
+  Ativo           bit           [not null, default: 1]
+  DataCriacao     datetime2     [not null, default: `SYSUTCDATETIME()`]
+  DataAtualizacao datetime2
+
+  Note: 'Usuário do sistema. Senha sempre armazenada com hash (PBKDF2/BCrypt).'
+}
+
+Table Perfil {
+  Id        int           [pk, increment]
+  Nome      varchar(50)   [not null, unique]
+  Descricao varchar(255)
+
+  Note: 'Papéis: Administrador, Gestor, AssistenteSocial.'
+}
+
+Table UsuarioPerfil {
+  UsuarioId int [not null]
+  PerfilId  int [not null]
+
+  Indexes {
+    (UsuarioId, PerfilId) [pk]
+  }
+
+  Note: 'Associativa N:N entre Usuario e Perfil.'
+}
+
+Table LogAuditoria {
+  Id           int           [pk, increment]
+  UsuarioId    int           [not null]
+  Entidade     varchar(100)  [not null]
+  EntidadeId   int           [not null]
+  Acao         varchar(20)   [not null, note: 'CREATE | UPDATE | DELETE']
+  DadosAntes   nvarchar(max)
+  DadosDepois  nvarchar(max)
+  DataHora     datetime2     [not null, default: `SYSUTCDATETIME()`]
+
+  Note: 'Trilha de auditoria para operações sensíveis (RN12).'
+}
+
+// =====================================================================
+// BLOCO B — Família e Pessoas
+// =====================================================================
+
+Table Familia {
+  Id                    int           [pk, increment]
+  Codigo                varchar(20)   [not null, unique, note: 'Código interno do prontuário familiar']
+  ResponsavelMembroId   int                          [note: 'Membro responsável (RN01). Nullable durante o cadastro inicial.']
+  EnderecoId            int           [not null]
+  RendaPerCapita        decimal(10,2) [not null, default: 0]
+  StatusVulnerabilidade varchar(30)   [not null, default: 'NaoClassificada', note: 'NaoClassificada | Baixa | Media | Alta | Critica']
+  DataCadastro          datetime2     [not null, default: `SYSUTCDATETIME()`]
+  Observacoes           nvarchar(max)
+  Ativo                 bit           [not null, default: 1]
+
+  Note: 'Núcleo familiar. Renda per capita recalculada via trigger ou no serviço.'
+}
+
+Table Membro {
+  Id              int           [pk, increment]
+  FamiliaId       int           [not null]
+  ParentescoId    int           [not null]
+  Nome            varchar(150)  [not null]
+  DataNascimento  date          [not null]
+  Sexo            varchar(1)    [not null, note: 'M | F | O']
+  EstadoCivil     varchar(20)
+  Ativo           bit           [not null, default: 1]
+
+  Note: 'Pessoa física vinculada a uma família. CPF está em Documento.'
+}
+
+Table Parentesco {
+  Id   int          [pk, increment]
+  Nome varchar(50)  [not null, unique, note: 'Responsavel | Conjuge | Filho(a) | Pai | Mae | Avô(ó) | Outro']
+
+  Note: 'Catálogo de parentescos.'
+}
+
+Table TipoDocumento {
+  Id    int          [pk, increment]
+  Sigla varchar(10)  [not null, unique, note: 'CPF | RG | NIS | CN | CTPS']
+  Nome  varchar(100) [not null]
+
+  Note: 'Catálogo de tipos de documento.'
+}
+
+Table Documento {
+  Id              int           [pk, increment]
+  MembroId        int           [not null]
+  TipoDocumentoId int           [not null]
+  Numero          varchar(30)   [not null]
+  OrgaoEmissor    varchar(30)
+  DataEmissao     date
+
+  Indexes {
+    (TipoDocumentoId, Numero) [unique, note: 'Mesmo número de CPF/RG não pode repetir (RN02).']
+  }
+
+  Note: 'Documento de identificação vinculado a um membro.'
+}
+
+// =====================================================================
+// BLOCO C — Localização
+// =====================================================================
+
+Table Estado {
+  Id         int          [pk, increment]
+  CodigoIbge int          [not null, unique]
+  Sigla      varchar(2)   [not null, unique]
+  Nome       varchar(100) [not null]
+
+  Note: 'UF. Populado via API do IBGE no seed.'
+}
+
+Table Municipio {
+  Id         int          [pk, increment]
+  CodigoIbge int          [not null, unique]
+  Nome       varchar(150) [not null]
+  EstadoId   int          [not null]
+
+  Note: 'Município. Populado via API do IBGE no seed.'
+}
+
+Table Endereco {
+  Id          int           [pk, increment]
+  Cep         varchar(8)    [not null]
+  Logradouro  varchar(255)  [not null]
+  Numero      varchar(20)
+  Complemento varchar(100)
+  Bairro      varchar(100)  [not null]
+  MunicipioId int           [not null]
+
+  Note: 'Endereço completo. Autopreenchido por ViaCEP (RF05).'
+}
+
+// =====================================================================
+// BLOCO D — Renda e Vulnerabilidade
+// =====================================================================
+
+Table TipoRenda {
+  Id   int          [pk, increment]
+  Nome varchar(100) [not null, unique, note: 'Salário CLT | Autônomo | Aposentadoria | Bolsa | Pensão | Informal | Outro']
+
+  Note: 'Catálogo de tipos de renda.'
+}
+
+Table Renda {
+  Id              int           [pk, increment]
+  MembroId        int           [not null]
+  TipoRendaId     int           [not null]
+  Valor           decimal(10,2) [not null]
+  MesReferencia   int           [not null, note: '1-12']
+  AnoReferencia   int           [not null]
+  Ativo           bit           [not null, default: 1]
+
+  Note: 'Renda declarada de um membro em determinado mês/ano.'
+}
+
+Table Vulnerabilidade {
+  Id          int           [pk, increment]
+  Nome        varchar(100)  [not null, unique]
+  Descricao   nvarchar(max)
+  Severidade  varchar(20)   [not null, default: 'Media', note: 'Baixa | Media | Alta | Critica']
+
+  Note: 'Catálogo de situações de vulnerabilidade (insegurança alimentar, moradia precária, etc.).'
+}
+
+Table FamiliaVulnerabilidade {
+  FamiliaId          int       [not null]
+  VulnerabilidadeId  int       [not null]
+  DataIdentificacao  date      [not null, default: `CAST(SYSUTCDATETIME() AS DATE)`]
+  Observacoes        nvarchar(max)
+
+  Indexes {
+    (FamiliaId, VulnerabilidadeId) [pk]
+  }
+
+  Note: 'Associativa N:N entre Familia e Vulnerabilidade (RN17).'
+}
+
+// =====================================================================
+// BLOCO E — Programas e Benefícios
+// =====================================================================
+
+Table ProgramaSocial {
+  Id                int           [pk, increment]
+  Nome              varchar(150)  [not null, unique]
+  Descricao         nvarchar(max)
+  OrgaoResponsavel  varchar(150)
+  Requisitos        nvarchar(max) [note: 'Texto livre com critérios de elegibilidade (RN16)']
+  Ativo             bit           [not null, default: 1]
+  DataCadastro      datetime2     [not null, default: `SYSUTCDATETIME()`]
+
+  Note: 'Bolsa Família, Auxílio Gás, Programa Leite, etc.'
+}
+
+Table Beneficio {
+  Id                     int           [pk, increment]
+  FamiliaId              int           [not null]
+  ProgramaSocialId       int           [not null]
+  DataInicio             date          [not null]
+  DataFim                date                       [note: 'NULL para programas contínuos (RN04)']
+  Valor                  decimal(10,2) [not null, default: 0]
+  Status                 varchar(20)   [not null, default: 'Ativo', note: 'Ativo | Suspenso | Encerrado']
+  ConcedidoPorUsuarioId  int           [not null,   note: 'Gestor que aprovou (RN03)']
+  Observacoes            nvarchar(max)
+  DataCadastro           datetime2     [not null, default: `SYSUTCDATETIME()`]
+
+  Note: 'Concessão de um programa a uma família.'
+}
+
+Table InstituicaoParceira {
+  Id           int           [pk, increment]
+  Nome         varchar(200)  [not null]
+  Cnpj         varchar(14)   [unique]
+  AreaAtuacao  varchar(100)  [note: 'Saúde | Educação | Jurídico | Profissionalização | Outro']
+  Contato      varchar(150)
+  Telefone     varchar(20)
+  Email        varchar(150)
+  Endereco     varchar(255)  [note: 'Endereço textual simples (não normalizado)']
+  Ativo        bit           [not null, default: 1]
+
+  Note: 'Órgão/ONG parceira para encaminhamentos.'
+}
+
+// =====================================================================
+// BLOCO F — Operação Social
+// =====================================================================
+
+Table Visita {
+  Id                       int           [pk, increment]
+  FamiliaId                int           [not null]
+  AssistenteSocialId       int           [not null,   note: 'FK para Usuario']
+  DataAgendada             datetime2     [not null]
+  DataRealizada            datetime2                  [note: 'Preenchida quando Status=Realizada (RN09)']
+  Status                   varchar(20)   [not null, default: 'Agendada', note: 'Agendada | Realizada | Cancelada | Remarcada']
+  Observacoes              nvarchar(max)
+  Ativo                    bit           [not null, default: 1]
+
+  Note: 'Visita domiciliar feita por Assistente Social.'
+}
+
+Table Atendimento {
+  Id                       int           [pk, increment]
+  FamiliaId                int           [not null]
+  AssistenteSocialId       int           [not null,   note: 'FK para Usuario']
+  Data                     datetime2     [not null, default: `SYSUTCDATETIME()`]
+  Tipo                     varchar(20)   [not null, default: 'Presencial', note: 'Presencial | Remoto']
+  Motivo                   varchar(255)  [not null]
+  Parecer                  nvarchar(max)
+  Ativo                    bit           [not null, default: 1]
+
+  Note: 'Atendimento social presencial ou remoto.'
+}
+
+Table Encaminhamento {
+  Id                        int           [pk, increment]
+  FamiliaId                 int           [not null]
+  InstituicaoParceiraId     int           [not null]
+  AssistenteSocialId        int           [not null,   note: 'FK para Usuario']
+  Data                      date          [not null, default: `CAST(SYSUTCDATETIME() AS DATE)`]
+  Motivo                    varchar(255)  [not null]
+  DataRetorno               date                       [note: 'Preenchida quando há retorno (RN22)']
+  Status                    varchar(20)   [not null, default: 'Aberto', note: 'Aberto | EmAndamento | Concluido | SemRetorno']
+  Observacoes               nvarchar(max)
+  Ativo                     bit           [not null, default: 1]
+
+  Note: 'Encaminhamento de família para instituição parceira.'
+}
+
+// =====================================================================
+// RELACIONAMENTOS
+// =====================================================================
+
+// --- Identidade ---
+Ref: UsuarioPerfil.UsuarioId       > Usuario.Id          [delete: cascade]
+Ref: UsuarioPerfil.PerfilId        > Perfil.Id           [delete: cascade]
+Ref: LogAuditoria.UsuarioId        > Usuario.Id
+
+// --- Família e Pessoas ---
+Ref: Familia.ResponsavelMembroId   > Membro.Id           [note: 'Nullable; preenchido após cadastro do responsável (RN01)']
+Ref: Familia.EnderecoId            > Endereco.Id
+Ref: Membro.FamiliaId              > Familia.Id          [delete: cascade]
+Ref: Membro.ParentescoId           > Parentesco.Id
+Ref: Documento.MembroId            > Membro.Id           [delete: cascade]
+Ref: Documento.TipoDocumentoId     > TipoDocumento.Id
+
+// --- Localização ---
+Ref: Municipio.EstadoId            > Estado.Id
+Ref: Endereco.MunicipioId          > Municipio.Id
+
+// --- Renda e Vulnerabilidade ---
+Ref: Renda.MembroId                > Membro.Id           [delete: cascade]
+Ref: Renda.TipoRendaId             > TipoRenda.Id
+Ref: FamiliaVulnerabilidade.FamiliaId         > Familia.Id         [delete: cascade]
+Ref: FamiliaVulnerabilidade.VulnerabilidadeId > Vulnerabilidade.Id
+
+// --- Programas e Benefícios ---
+Ref: Beneficio.FamiliaId                  > Familia.Id
+Ref: Beneficio.ProgramaSocialId           > ProgramaSocial.Id
+Ref: Beneficio.ConcedidoPorUsuarioId      > Usuario.Id
+
+// --- Operação Social ---
+Ref: Visita.FamiliaId                  > Familia.Id
+Ref: Visita.AssistenteSocialId         > Usuario.Id
+Ref: Atendimento.FamiliaId             > Familia.Id
+Ref: Atendimento.AssistenteSocialId    > Usuario.Id
+Ref: Encaminhamento.FamiliaId          > Familia.Id
+Ref: Encaminhamento.InstituicaoParceiraId > InstituicaoParceira.Id
+Ref: Encaminhamento.AssistenteSocialId > Usuario.Id
