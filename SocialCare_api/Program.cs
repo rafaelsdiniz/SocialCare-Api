@@ -10,6 +10,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddMemoryCache();
+
+const string CorsPolicy = "SocialCareWeb";
+var origensPermitidas = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicy, policy =>
+    {
+        if (origensPermitidas.Length > 0)
+            policy.WithOrigins(origensPermitidas).AllowAnyHeader().AllowAnyMethod();
+        else
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
 builder.Services.AddSocialCareAuthentication(builder.Configuration);
 builder.Services.AddSocialCareExternalApis(builder.Configuration);
 builder.Services.AddSocialCarePersistence();
@@ -30,6 +44,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors(CorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();
