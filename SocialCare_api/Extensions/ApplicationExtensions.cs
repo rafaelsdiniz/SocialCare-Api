@@ -19,6 +19,8 @@ public static class ApplicationExtensions
         services.AddScoped<IVisitaService, VisitaService>();
         services.AddScoped<IAtendimentoService, AtendimentoService>();
         services.AddScoped<IUsuarioService, UsuarioService>();
+        services.AddScoped<IRelatorioService, RelatorioService>();
+        services.AddScoped<IAuditoriaService, AuditoriaService>();
 
         return services;
     }

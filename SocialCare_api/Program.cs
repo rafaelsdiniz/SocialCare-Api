@@ -34,6 +34,9 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Trilha de auditoria das requisições mutantes (depende do usuário autenticado).
+app.UseMiddleware<AuditLogMiddleware>();
+
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();
 
