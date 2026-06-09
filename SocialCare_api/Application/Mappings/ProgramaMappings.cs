@@ -6,7 +6,7 @@ namespace SocialCare.Application.Mappings;
 public static class ProgramaMappings
 {
     public static ProgramaResumoDto ToResumoDto(this ProgramaSocial p)
-        => new(p.Id, p.Nome, p.OrgaoResponsavel, p.ValorPadrao, p.Ativo);
+        => new(p.Id, p.Nome, p.OrgaoResponsavel, p.IconeBase64, p.ValorPadrao, p.Ativo);
 
     public static ProgramaResponse ToResponse(this ProgramaSocial p)
         => new(
@@ -15,6 +15,7 @@ public static class ProgramaMappings
             p.OrgaoResponsavel,
             p.Descricao,
             p.Requisitos,
+            p.IconeBase64,
             p.ValorPadrao,
             p.DuracaoMesesPadrao,
             p.VigenciaInicio,

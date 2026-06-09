@@ -6,6 +6,8 @@ public class ProgramaSocial : BaseEntity
     public string? Descricao { get; set; }
     public string? Requisitos { get; set; }
     public string OrgaoResponsavel { get; set; } = string.Empty;
+    /// <summary>Ícone do programa em data URL base64 (ex.: "data:image/png;base64,...").</summary>
+    public string? IconeBase64 { get; set; }
     public decimal? ValorPadrao { get; set; }
     public int? DuracaoMesesPadrao { get; set; }
     public DateTime? VigenciaInicio { get; set; }

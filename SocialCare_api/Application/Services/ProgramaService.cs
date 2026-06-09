@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using SocialCare.Application.Common;
 using SocialCare.Application.Common.Exceptions;
 using SocialCare.Application.DTOs.Programas;
@@ -14,17 +15,20 @@ public class ProgramaService : IProgramaService
 {
     private readonly IRepository<ProgramaSocial> _programas;
     private readonly IUnitOfWork _uow;
+    private readonly IMemoryCache _cache;
     private readonly IValidator<CriarProgramaRequest> _criarValidator;
     private readonly IValidator<AtualizarProgramaRequest> _atualizarValidator;
 
     public ProgramaService(
         IRepository<ProgramaSocial> programas,
         IUnitOfWork uow,
+        IMemoryCache cache,
         IValidator<CriarProgramaRequest> criarValidator,
         IValidator<AtualizarProgramaRequest> atualizarValidator)
     {
         _programas = programas;
         _uow = uow;
+        _cache = cache;
         _criarValidator = criarValidator;
         _atualizarValidator = atualizarValidator;
     }
@@ -75,6 +79,7 @@ public class ProgramaService : IProgramaService
             OrgaoResponsavel = request.OrgaoResponsavel.Trim(),
             Descricao = request.Descricao,
             Requisitos = request.Requisitos,
+            IconeBase64 = request.IconeBase64,
             ValorPadrao = request.ValorPadrao,
             DuracaoMesesPadrao = request.DuracaoMesesPadrao,
             VigenciaInicio = request.VigenciaInicio,
@@ -83,6 +88,7 @@ public class ProgramaService : IProgramaService
 
         await _programas.AdicionarAsync(programa, ct);
         await _uow.SalvarAlteracoesAsync(ct);
+        _cache.Remove(CacheKeys.ProgramasPublico);
 
         return programa.ToResponse();
     }
@@ -103,6 +109,7 @@ public class ProgramaService : IProgramaService
         programa.OrgaoResponsavel = request.OrgaoResponsavel.Trim();
         programa.Descricao = request.Descricao;
         programa.Requisitos = request.Requisitos;
+        programa.IconeBase64 = request.IconeBase64;
         programa.ValorPadrao = request.ValorPadrao;
         programa.DuracaoMesesPadrao = request.DuracaoMesesPadrao;
         programa.VigenciaInicio = request.VigenciaInicio;
@@ -111,6 +118,7 @@ public class ProgramaService : IProgramaService
 
         _programas.Atualizar(programa);
         await _uow.SalvarAlteracoesAsync(ct);
+        _cache.Remove(CacheKeys.ProgramasPublico);
 
         return programa.ToResponse();
     }
@@ -123,5 +131,6 @@ public class ProgramaService : IProgramaService
         programa.Ativo = false;
         _programas.Atualizar(programa);
         await _uow.SalvarAlteracoesAsync(ct);
+        _cache.Remove(CacheKeys.ProgramasPublico);
     }
 }

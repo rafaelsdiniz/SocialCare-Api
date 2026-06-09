@@ -52,6 +52,26 @@ public class IbgeClient : IIbgeClient
         }
     }
 
+    public async Task<int?> ObterPopulacaoAsync(int codigoIbge, CancellationToken ct = default)
+    {
+        // Agregado 6579 / variável 9324 = "População residente estimada"; período -1 = mais recente.
+        var url = $"https://servicodados.ibge.gov.br/api/v3/agregados/6579/periodos/-1/variaveis/9324?localidades=N6[{codigoIbge}]";
+        try
+        {
+            var payload = await _http.GetFromJsonAsync<List<AgregadoVariavel>>(url, JsonOpts, ct);
+            var serie = payload?.FirstOrDefault()?.Resultados?.FirstOrDefault()?.Series?.FirstOrDefault()?.Serie;
+            if (serie is null || serie.Count == 0) return null;
+
+            var bruto = serie.Values.LastOrDefault(v => int.TryParse(v, out _));
+            return int.TryParse(bruto, out var populacao) ? populacao : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao consultar população do município {Codigo} no IBGE", codigoIbge);
+            return null;
+        }
+    }
+
     private class EstadoPayload
     {
         public int Id { get; set; }
@@ -69,5 +89,21 @@ public class IbgeClient : IIbgeClient
     {
         public int Id { get; set; }
         public string Nome { get; set; } = string.Empty;
+    }
+
+    // Agregados IBGE (v3): [ { resultados: [ { series: [ { serie: { "2024": "313349" } } ] } ] } ]
+    private class AgregadoVariavel
+    {
+        public List<AgregadoResultado>? Resultados { get; set; }
+    }
+
+    private class AgregadoResultado
+    {
+        public List<AgregadoSerie>? Series { get; set; }
+    }
+
+    private class AgregadoSerie
+    {
+        public Dictionary<string, string>? Serie { get; set; }
     }
 }

@@ -5,6 +5,7 @@ public record CriarProgramaRequest(
     string OrgaoResponsavel,
     string? Descricao,
     string? Requisitos,
+    string? IconeBase64,
     decimal? ValorPadrao,
     int? DuracaoMesesPadrao,
     DateTime? VigenciaInicio,
@@ -15,6 +16,7 @@ public record AtualizarProgramaRequest(
     string OrgaoResponsavel,
     string? Descricao,
     string? Requisitos,
+    string? IconeBase64,
     decimal? ValorPadrao,
     int? DuracaoMesesPadrao,
     DateTime? VigenciaInicio,
@@ -25,6 +27,7 @@ public record ProgramaResumoDto(
     int Id,
     string Nome,
     string OrgaoResponsavel,
+    string? IconeBase64,
     decimal? ValorPadrao,
     bool Ativo);
 
@@ -34,6 +37,7 @@ public record ProgramaResponse(
     string OrgaoResponsavel,
     string? Descricao,
     string? Requisitos,
+    string? IconeBase64,
     decimal? ValorPadrao,
     int? DuracaoMesesPadrao,
     DateTime? VigenciaInicio,

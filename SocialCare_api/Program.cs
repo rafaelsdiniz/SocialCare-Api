@@ -65,6 +65,8 @@ using (var scope = app.Services.CreateScope())
     {
         await IbgeBootstrap.PopularEstadosEMunicipiosAsync(app.Services, logger);
     }
+
+    await DemoDataBootstrap.PopularAsync(app.Services, app.Configuration, logger);
 }
 
 app.Run();

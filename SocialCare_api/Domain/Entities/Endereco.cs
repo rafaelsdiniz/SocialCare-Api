@@ -9,6 +9,10 @@ public class Endereco : BaseEntity
     public string Bairro { get; set; } = string.Empty;
     public string? PontoReferencia { get; set; }
 
+    /// <summary>Coordenadas geográficas (geocodificadas via Nominatim/OSM). Nulas quando não localizadas.</summary>
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     public int MunicipioId { get; set; }
     public Municipio Municipio { get; set; } = null!;
 

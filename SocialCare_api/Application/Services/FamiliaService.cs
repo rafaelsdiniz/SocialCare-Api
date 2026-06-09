@@ -15,6 +15,7 @@ public class FamiliaService : IFamiliaService
     private readonly IRepository<Familia> _familias;
     private readonly IRepository<Municipio> _municipios;
     private readonly IUnitOfWork _uow;
+    private readonly IGeocodingClient _geocoding;
     private readonly IValidator<CriarFamiliaRequest> _criarValidator;
     private readonly IValidator<AtualizarFamiliaRequest> _atualizarValidator;
 
@@ -22,12 +23,14 @@ public class FamiliaService : IFamiliaService
         IRepository<Familia> familias,
         IRepository<Municipio> municipios,
         IUnitOfWork uow,
+        IGeocodingClient geocoding,
         IValidator<CriarFamiliaRequest> criarValidator,
         IValidator<AtualizarFamiliaRequest> atualizarValidator)
     {
         _familias = familias;
         _municipios = municipios;
         _uow = uow;
+        _geocoding = geocoding;
         _criarValidator = criarValidator;
         _atualizarValidator = atualizarValidator;
     }
@@ -82,6 +85,8 @@ public class FamiliaService : IFamiliaService
             Endereco = MapearEndereco(request.Endereco)
         };
 
+        await GeocodificarEnderecoAsync(familia.Endereco, ct);
+
         await _familias.AdicionarAsync(familia, ct);
         await _uow.SalvarAlteracoesAsync(ct);
 
@@ -101,7 +106,12 @@ public class FamiliaService : IFamiliaService
         familia.Observacoes = request.Observacoes;
 
         familia.Endereco ??= new Endereco();
+        var assinaturaAntes = Assinatura(familia.Endereco);
         AplicarEndereco(familia.Endereco, request.Endereco);
+
+        // Só consulta o geocoder se o endereço mudou (ou ainda não tem coordenadas).
+        if (assinaturaAntes != Assinatura(familia.Endereco) || familia.Endereco.Latitude is null)
+            await GeocodificarEnderecoAsync(familia.Endereco, ct);
 
         _familias.Atualizar(familia);
         await _uow.SalvarAlteracoesAsync(ct);
@@ -130,6 +140,28 @@ public class FamiliaService : IFamiliaService
     {
         if (!await _municipios.ExisteAsync(m => m.Id == municipioId && m.Ativo, ct))
             throw new BusinessException($"Município de id {municipioId} não encontrado. Cadastre-o via importação do IBGE.");
+    }
+
+    private static string Assinatura(Endereco e)
+        => $"{e.Logradouro}|{e.Numero}|{e.Bairro}|{e.MunicipioId}|{e.Cep}";
+
+    /// <summary>Geocodifica o endereço (Nominatim) e grava lat/lng. Falhas são toleradas (coordenadas ficam nulas).</summary>
+    private async Task GeocodificarEnderecoAsync(Endereco endereco, CancellationToken ct)
+    {
+        var municipio = await _municipios.Query(rastrear: false)
+            .Include(m => m.Estado)
+            .FirstOrDefaultAsync(m => m.Id == endereco.MunicipioId, ct);
+        if (municipio is null) return;
+
+        var coord = await _geocoding.GeocodificarAsync(
+            new GeocodingRequest(endereco.Logradouro, endereco.Numero, endereco.Bairro, municipio.Nome, municipio.Estado.Sigla, endereco.Cep),
+            ct);
+
+        if (coord is not null)
+        {
+            endereco.Latitude = coord.Latitude;
+            endereco.Longitude = coord.Longitude;
+        }
     }
 
     private static Endereco MapearEndereco(EnderecoRequest req)

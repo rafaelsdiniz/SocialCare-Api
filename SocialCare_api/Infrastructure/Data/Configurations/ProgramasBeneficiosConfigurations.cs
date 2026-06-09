@@ -14,6 +14,7 @@ public class ProgramaSocialConfiguration : IEntityTypeConfiguration<ProgramaSoci
         b.Property(x => x.Descricao).HasMaxLength(1000);
         b.Property(x => x.Requisitos).HasMaxLength(1000);
         b.Property(x => x.OrgaoResponsavel).HasMaxLength(120).IsRequired();
+        b.Property(x => x.IconeBase64).HasColumnType("nvarchar(max)");
         b.Property(x => x.ValorPadrao).HasPrecision(12, 2);
         b.HasIndex(x => x.Nome).IsUnique();
     }
