@@ -33,6 +33,11 @@ public static class DemoDataBootstrap
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Usuario>>();
 
+        if (config.GetValue("Demo:RecriarNaInicializacao", false))
+        {
+            await LimparDadosDemoAsync(db, logger, ct);
+        }
+
         await GarantirProgramasAsync(db, logger, ct);
         var municipioIds = await GarantirMunicipiosTocantinsAsync(db, logger, ct);
         var assistenteIds = await GarantirUsuariosAsync(db, hasher, logger, ct);
@@ -40,6 +45,34 @@ public static class DemoDataBootstrap
         await GarantirFamiliasAsync(db, municipioIds, logger, ct);
         await GarantirAtividadesAsync(db, assistenteIds, instituicaoIds, logger, ct);
         await GarantirCoordenadasAsync(db, logger, ct);
+    }
+
+    // ---- Reset dos dados de demonstração -------------------------------------
+
+    /// <summary>
+    /// Apaga os dados de demonstração ligados a famílias (atividades, benefícios, membros,
+    /// endereços e as próprias famílias) para que o seed os recrie do zero. Preserva schema,
+    /// administrador, perfis, catálogos, municípios, programas e instituições.
+    /// Ordem respeita as chaves estrangeiras. Controlado por <c>Demo:RecriarNaInicializacao</c>.
+    /// </summary>
+    private static async Task LimparDadosDemoAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        await db.Encaminhamentos.ExecuteDeleteAsync(ct);
+        await db.Atendimentos.ExecuteDeleteAsync(ct);
+        await db.Visitas.ExecuteDeleteAsync(ct);
+        await db.Beneficios.ExecuteDeleteAsync(ct);
+        await db.FamiliaVulnerabilidades.ExecuteDeleteAsync(ct);
+        await db.Rendas.ExecuteDeleteAsync(ct);
+        await db.Documentos.ExecuteDeleteAsync(ct);
+
+        // Quebra a referência circular Família ↔ Membro responsável antes de remover os membros.
+        await db.Familias.ExecuteUpdateAsync(s => s.SetProperty(f => f.MembroResponsavelId, (int?)null), ct);
+
+        await db.Membros.ExecuteDeleteAsync(ct);
+        await db.Enderecos.ExecuteDeleteAsync(ct);
+        await db.Familias.ExecuteDeleteAsync(ct);
+
+        logger.LogWarning("Reset de demonstração: dados de famílias e atividades apagados (Demo:RecriarNaInicializacao=true).");
     }
 
     // ---- Coordenadas de demonstração (mapa) ----------------------------------
@@ -57,6 +90,16 @@ public static class DemoDataBootstrap
         [1721208] = (-6.3266, -47.4170),  // Tocantinópolis
         [1707009] = (-11.6260, -46.8210), // Dianópolis
         [1718501] = (-8.9709, -48.1750),  // Pedro Afonso
+        [1702406] = (-5.6506, -48.1228),  // Araguatins
+        [1713205] = (-9.5673, -48.3922),  // Miracema do Tocantins
+        [1708205] = (-11.7969, -49.5289), // Formoso do Araguaia
+        [1702554] = (-5.4665, -47.8866),  // Augustinópolis
+        [1722107] = (-6.4108, -48.5320),  // Xambioá
+        [1720903] = (-12.4044, -46.4344), // Taguatinga
+        [1702703] = (-12.9311, -46.9397), // Arraias
+        [1714203] = (-11.7088, -47.7237), // Natividade
+        [1716208] = (-12.0257, -48.5386), // Peixe
+        [1701903] = (-12.4801, -49.1244), // Alvorada
     };
 
     /// <summary>
@@ -183,17 +226,20 @@ public static class DemoDataBootstrap
         (1721208, "Tocantinópolis"),
         (1707009, "Dianópolis"),
         (1718501, "Pedro Afonso"),
+        (1702406, "Araguatins"),
+        (1713205, "Miracema do Tocantins"),
+        (1708205, "Formoso do Araguaia"),
+        (1702554, "Augustinópolis"),
+        (1722107, "Xambioá"),
+        (1720903, "Taguatinga"),
+        (1702703, "Arraias"),
+        (1714203, "Natividade"),
+        (1716208, "Peixe"),
+        (1701903, "Alvorada"),
     ];
 
     private static async Task<List<int>> GarantirMunicipiosTocantinsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
-        var existentes = await db.Municipios.Select(m => m.Id).ToListAsync(ct);
-        if (existentes.Count > 0)
-        {
-            logger.LogInformation("Municípios já existem ({N}). Usando os cadastrados.", existentes.Count);
-            return existentes;
-        }
-
         var estado = await db.Estados.FirstOrDefaultAsync(e => e.Sigla == "TO", ct);
         if (estado is null)
         {
@@ -210,20 +256,30 @@ public static class DemoDataBootstrap
             await db.SaveChangesAsync(ct);
         }
 
-        var municipios = MunicipiosTo.Select(m => new Municipio
+        // Aditivo: garante que todos os municípios do seed existam (por código IBGE).
+        var codigosExistentes = await db.Municipios.Select(m => m.CodigoIbge).ToListAsync(ct);
+        var faltantes = MunicipiosTo.Where(m => !codigosExistentes.Contains(m.CodigoIbge)).ToList();
+
+        if (faltantes.Count > 0)
         {
-            CodigoIbge = m.CodigoIbge,
-            Nome = m.Nome,
-            EstadoId = estado.Id,
-            CriadoEm = Agora,
-            Ativo = true,
-        }).ToList();
+            db.Municipios.AddRange(faltantes.Select(m => new Municipio
+            {
+                CodigoIbge = m.CodigoIbge,
+                Nome = m.Nome,
+                EstadoId = estado.Id,
+                CriadoEm = Agora,
+                Ativo = true,
+            }));
+            await db.SaveChangesAsync(ct);
+        }
 
-        db.Municipios.AddRange(municipios);
-        await db.SaveChangesAsync(ct);
-        logger.LogInformation("Inseridos {N} municípios do Tocantins.", municipios.Count);
+        logger.LogInformation("Municípios do Tocantins: {Novos} inseridos, {Total} no total.", faltantes.Count, codigosExistentes.Count + faltantes.Count);
 
-        return municipios.Select(m => m.Id).ToList();
+        var codigosSeed = MunicipiosTo.Select(m => m.CodigoIbge).ToList();
+        return await db.Municipios
+            .Where(m => codigosSeed.Contains(m.CodigoIbge))
+            .Select(m => m.Id)
+            .ToListAsync(ct);
     }
 
     // ---- Usuários assistentes -------------------------------------------------

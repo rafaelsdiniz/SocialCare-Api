@@ -15,6 +15,12 @@ public record AtualizarUsuarioRequest(
 
 public record AlterarSenhaRequest(string NovaSenha);
 
+/// <summary>Atualização dos próprios dados (sem alterar perfis ou status).</summary>
+public record AtualizarMinhaContaRequest(string Nome, string Email);
+
+/// <summary>Troca da própria senha, exigindo a senha atual.</summary>
+public record AlterarMinhaSenhaRequest(string SenhaAtual, string NovaSenha);
+
 public record UsuarioResumoDto(
     int Id,
     string Nome,

@@ -20,6 +20,8 @@ public class UsuarioService : IUsuarioService
     private readonly IValidator<CriarUsuarioRequest> _criarValidator;
     private readonly IValidator<AtualizarUsuarioRequest> _atualizarValidator;
     private readonly IValidator<AlterarSenhaRequest> _senhaValidator;
+    private readonly IValidator<AtualizarMinhaContaRequest> _minhaContaValidator;
+    private readonly IValidator<AlterarMinhaSenhaRequest> _minhaSenhaValidator;
 
     public UsuarioService(
         IRepository<Usuario> usuarios,
@@ -28,7 +30,9 @@ public class UsuarioService : IUsuarioService
         IUnitOfWork uow,
         IValidator<CriarUsuarioRequest> criarValidator,
         IValidator<AtualizarUsuarioRequest> atualizarValidator,
-        IValidator<AlterarSenhaRequest> senhaValidator)
+        IValidator<AlterarSenhaRequest> senhaValidator,
+        IValidator<AtualizarMinhaContaRequest> minhaContaValidator,
+        IValidator<AlterarMinhaSenhaRequest> minhaSenhaValidator)
     {
         _usuarios = usuarios;
         _perfis = perfis;
@@ -37,6 +41,8 @@ public class UsuarioService : IUsuarioService
         _criarValidator = criarValidator;
         _atualizarValidator = atualizarValidator;
         _senhaValidator = senhaValidator;
+        _minhaContaValidator = minhaContaValidator;
+        _minhaSenhaValidator = minhaSenhaValidator;
     }
 
     public async Task<PagedResult<UsuarioResumoDto>> ListarAsync(UsuarioFiltro filtro, PaginacaoQuery paginacao, CancellationToken ct = default)
@@ -132,6 +138,42 @@ public class UsuarioService : IUsuarioService
 
         var usuario = await _usuarios.ObterPorIdAsync(id, ct)
             ?? throw new NotFoundException("Usuário", id);
+
+        usuario.SenhaHash = _hasher.HashPassword(usuario, request.NovaSenha);
+        _usuarios.Atualizar(usuario);
+        await _uow.SalvarAlteracoesAsync(ct);
+    }
+
+    public async Task<UsuarioResponse> AtualizarMinhaContaAsync(int id, AtualizarMinhaContaRequest request, CancellationToken ct = default)
+    {
+        await _minhaContaValidator.EnsureValidAsync(request, ct);
+
+        var usuario = await CarregarAsync(id, rastrear: true, ct)
+            ?? throw new NotFoundException("Usuário", id);
+
+        var email = request.Email.Trim();
+        if (usuario.Email != email && await _usuarios.ExisteAsync(u => u.Email == email && u.Id != id, ct))
+            throw new ConflictException($"Já existe um usuário com o e-mail '{email}'.");
+
+        usuario.Nome = request.Nome.Trim();
+        usuario.Email = email;
+
+        _usuarios.Atualizar(usuario);
+        await _uow.SalvarAlteracoesAsync(ct);
+
+        return await ObterPorIdAsync(id, ct);
+    }
+
+    public async Task AlterarMinhaSenhaAsync(int id, AlterarMinhaSenhaRequest request, CancellationToken ct = default)
+    {
+        await _minhaSenhaValidator.EnsureValidAsync(request, ct);
+
+        var usuario = await _usuarios.ObterPorIdAsync(id, ct)
+            ?? throw new NotFoundException("Usuário", id);
+
+        var verificacao = _hasher.VerifyHashedPassword(usuario, usuario.SenhaHash, request.SenhaAtual);
+        if (verificacao == PasswordVerificationResult.Failed)
+            throw new BusinessException("A senha atual está incorreta.");
 
         usuario.SenhaHash = _hasher.HashPassword(usuario, request.NovaSenha);
         _usuarios.Atualizar(usuario);

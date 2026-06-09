@@ -36,3 +36,23 @@ public class AlterarSenhaRequestValidator : AbstractValidator<AlterarSenhaReques
             .MinimumLength(8).WithMessage("A senha deve ter ao menos 8 caracteres.");
     }
 }
+
+public class AtualizarMinhaContaRequestValidator : AbstractValidator<AtualizarMinhaContaRequest>
+{
+    public AtualizarMinhaContaRequestValidator()
+    {
+        RuleFor(x => x.Nome).NotEmpty().WithMessage("O nome é obrigatório.").MaximumLength(150);
+        RuleFor(x => x.Email).NotEmpty().WithMessage("O e-mail é obrigatório.")
+            .EmailAddress().WithMessage("E-mail inválido.").MaximumLength(200);
+    }
+}
+
+public class AlterarMinhaSenhaRequestValidator : AbstractValidator<AlterarMinhaSenhaRequest>
+{
+    public AlterarMinhaSenhaRequestValidator()
+    {
+        RuleFor(x => x.SenhaAtual).NotEmpty().WithMessage("Informe a senha atual.");
+        RuleFor(x => x.NovaSenha).NotEmpty().WithMessage("A nova senha é obrigatória.")
+            .MinimumLength(8).WithMessage("A senha deve ter ao menos 8 caracteres.");
+    }
+}

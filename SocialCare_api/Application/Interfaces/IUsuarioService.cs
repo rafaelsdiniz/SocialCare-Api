@@ -12,5 +12,7 @@ public interface IUsuarioService
     Task<UsuarioResponse> CriarAsync(CriarUsuarioRequest request, CancellationToken ct = default);
     Task<UsuarioResponse> AtualizarAsync(int id, AtualizarUsuarioRequest request, CancellationToken ct = default);
     Task AlterarSenhaAsync(int id, AlterarSenhaRequest request, CancellationToken ct = default);
+    Task<UsuarioResponse> AtualizarMinhaContaAsync(int id, AtualizarMinhaContaRequest request, CancellationToken ct = default);
+    Task AlterarMinhaSenhaAsync(int id, AlterarMinhaSenhaRequest request, CancellationToken ct = default);
     Task RemoverAsync(int id, CancellationToken ct = default);
 }
