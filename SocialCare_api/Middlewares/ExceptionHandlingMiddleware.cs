@@ -43,6 +43,7 @@ public class ExceptionHandlingMiddleware
             NotFoundException nf => Criar(StatusCodes.Status404NotFound, "Recurso não encontrado.", nf.Message),
             ConflictException cf => Criar(StatusCodes.Status409Conflict, "Conflito de dados.", cf.Message),
             BusinessException be => Criar(StatusCodes.Status422UnprocessableEntity, "Regra de negócio violada.", be.Message),
+            ExternalServiceException se => Criar(StatusCodes.Status503ServiceUnavailable, "Serviço externo indisponível.", se.Message),
             _ => Criar(StatusCodes.Status500InternalServerError, "Erro interno.",
                 _env.IsDevelopment() ? ex.ToString() : "Ocorreu um erro inesperado. Tente novamente.")
         };
